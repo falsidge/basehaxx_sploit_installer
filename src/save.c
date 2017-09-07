@@ -43,8 +43,13 @@ Result read_savedata(const char* path, void** data, size_t* size)
 
     if(R_FAILED(ret))
     {
-        fail = -1;
-        goto readFail;
+        binPath.type = MEDIATYPE_GAME_CARD;
+        ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
+        if(R_FAILED(ret))
+        {
+            fail = -1;
+            goto readFail;
+        }
     }
 
     Handle file = 0;
@@ -136,6 +141,8 @@ Result write_savedata(const char* path, const void* data, size_t size)
     ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
     if(R_FAILED(ret))
     {
+        binPath.type = MEDIATYPE_GAME_CARD;
+        ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
         fail = -1;
         goto writeFail;
     }
