@@ -143,8 +143,11 @@ Result write_savedata(const char* path, const void* data, size_t size)
     {
         binPath.type = MEDIATYPE_GAME_CARD;
         ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
-        fail = -1;
-        goto writeFail;
+        if(R_FAILED(ret))
+        {
+            fail = -1;
+            goto writeFail;
+        }
     }
 
     // delete file 
