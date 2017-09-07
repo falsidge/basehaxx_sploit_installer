@@ -98,54 +98,6 @@ Result getConfig(int* firmware_version)
     return ret;
 }
 
-Result getProgramID(u64* id)
-{
-    Result ret = APT_GetProgramID(id);
-    if(R_FAILED(ret))
-        snprintf(status, sizeof(status) - 1, "An error occured! Failed to get the program ID for the current process.\n    Error code: %08lX", ret);
-
-    return ret;
-}
-
-Result getGameVersion(u64 program_id, char* gameversion, u16* gameversion_id)
-{
-    Result ret = 0;
-
-    AM_TitleEntry update_title;
-
-    u64 update_program_id = 0;
-    if(((program_id >> 32) & 0xFFFF) == 0) update_program_id = program_id | 0x0000000E00000000ULL;
-
-    if(update_program_id)
-    {
-        ret = amInit();
-        if(R_FAILED(ret))
-        {
-            snprintf(status, sizeof(status) - 1, "An error occured! Failed to initialize AM.\n    Error code: %08lX", ret);
-            return ret;
-        }
-
-        ret = AM_GetTitleInfo(1, 1, &update_program_id, &update_title);
-        amExit();
-
-        memcpy(gameversion, "1.0", 3);
-        if(R_SUCCEEDED(ret))
-        {
-            if(update_title.version == VERSION_14)
-            {
-                memcpy(gameversion, "1.4", 3);
-                *gameversion_id = VERSION_14;
-            }
-            else
-            {
-                snprintf(status, sizeof(status) - 1, "Unsupported game version detected, please try again with a supported version.\n    Supported version : 1.0 / 1.4\n");
-                return ret;
-            }
-        }
-    }
-
-    return 0;
-}
 
 int main()
 {
@@ -168,7 +120,6 @@ int main()
     bool is_cart = true;
 
     char gameversion[3] = {0};
-    u16 gameversion_id = 0;
 
     static char top_text[2048];
     top_text[0] = '\0';
@@ -180,8 +131,6 @@ int main()
 
     u8* payload_buffer = NULL;
     u32 payload_size = 0;
-
-    u64 program_id = 0;
 
     while(aptMainLoop())
     {
@@ -260,20 +209,6 @@ int main()
                     break;
                 }
 
-                if(getProgramID(&program_id))
-                {
-                    next_state = STATE_ERROR;
-                    break;
-                }
-
-               // memcpy(gametitle, (program_id == 0x000400000011C400 ? "OR" : "AS"), 2);
-
-                if(getGameVersion(program_id, gameversion, &gameversion_id))
-                {
-                    next_state = STATE_ERROR;
-                    break;
-                }
-
                 next_state = STATE_INITIAL;
             }
             break;
@@ -296,14 +231,6 @@ int main()
                 if((hidKeysDown() & KEY_LEFT )|| (hidKeysDown() & KEY_RIGHT ) || (hidKeysDown() & KEY_DOWN )|| (hidKeysDown() & KEY_UP) ) is_OR = !is_OR;
                 if(hidKeysDown() & KEY_A){ next_state = STATE_SELECT_GAME_VERSION;
                     memcpy(gametitle, (is_OR ? "OR" : "AS"), 2);
-                    if (is_OR)
-                    {
-                        program_id = 0x000400000011C400;
-                    }
-                    else
-                    {
-                        program_id = 0x000400000011C500;
-                    }
                     printf("\n");
                 }
                 printf(is_OR?"OR\r" :"AS\r" );
@@ -320,7 +247,6 @@ int main()
                     else
                     {
                         memcpy(gameversion, "1.4", 3);
-                        gameversion_id = VERSION_14;
                     }
                     printf("\n");
                     
