@@ -36,7 +36,11 @@ Result read_savedata(const char* path, void** data, size_t* size)
     void* buffer = NULL;
 
     fsUseSession(save_session);
-    ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_SAVEDATA, (FS_Path){PATH_EMPTY, 1, (u8*)""});
+    //ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_SAVEDATA, (FS_Path){PATH_EMPTY, 1, (u8*)""});
+    u32 path2[3] = {MEDIATYPE_SD ,0x0011C500, 0x00040000 };
+    FS_Path binPath = {PATH_BINARY, 12, path2};
+    ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
+
     if(R_FAILED(ret))
     {
         fail = -1;
@@ -127,14 +131,16 @@ Result write_savedata(const char* path, const void* data, size_t size)
     int fail = 0;
 
     fsUseSession(save_session);
-    ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_SAVEDATA,(FS_Path){PATH_EMPTY, 1, (u8*)""});
+    u32 path2[3] = {MEDIATYPE_SD ,0x0011C500, 0x00040000 };
+    FS_Path binPath = {PATH_BINARY, 12, path2};
+    ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
     if(R_FAILED(ret))
     {
         fail = -1;
         goto writeFail;
     }
 
-    // delete file
+    // delete file 
     FSUSER_DeleteFile(save_archive, fsMakePath(PATH_ASCII, path));
     FSUSER_ControlArchive(save_archive, ARCHIVE_ACTION_COMMIT_SAVE_DATA, NULL, 0, NULL, 0);
 
