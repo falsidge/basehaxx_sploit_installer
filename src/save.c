@@ -27,7 +27,7 @@ unsigned short ccitt16(unsigned char *data, unsigned int length)
     return crc;
 }
 
-Result read_savedata(const char* path, void** data, size_t* size)
+Result read_savedata(const char* path, void** data, size_t* size, bool is_OR, bool is_cart)
 {
     if(!path || !data || !size) return -1;
 
@@ -37,19 +37,31 @@ Result read_savedata(const char* path, void** data, size_t* size)
 
     fsUseSession(save_session);
     //ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_SAVEDATA, (FS_Path){PATH_EMPTY, 1, (u8*)""});
-    u32 path2[3] = {MEDIATYPE_SD ,0x0011C500, 0x00040000 };
+    u32 path2[3];
+    if (is_OR)
+    {
+        path2[1] = 0x0011C400;
+        path2[2] = 0x00040000 ;
+    }
+    else
+    {
+        path2[1] = 0x0011C500;
+        path2[2] = 0x00040000 ;
+    }
+    if (!is_cart)
+    {
+        path2[0] = MEDIATYPE_SD;
+    }
+    else
+    {
+        path2[0] = MEDIATYPE_GAME_CARD;
+    }
     FS_Path binPath = {PATH_BINARY, 12, path2};
     ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
-
     if(R_FAILED(ret))
     {
-        binPath.type = MEDIATYPE_GAME_CARD;
-        ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
-        if(R_FAILED(ret))
-        {
-            fail = -1;
-            goto readFail;
-        }
+        fail = -1;
+        goto readFail;
     }
 
     Handle file = 0;
@@ -128,7 +140,7 @@ Result write_from_file(u8* dest, char* path, u32* file_size)
 }
 
 
-Result write_savedata(const char* path, const void* data, size_t size)
+Result write_savedata(const char* path, const void* data, size_t size,bool is_OR,bool is_cart)
 {
     if(!path || !data || size == 0) return -1;
 
@@ -136,18 +148,32 @@ Result write_savedata(const char* path, const void* data, size_t size)
     int fail = 0;
 
     fsUseSession(save_session);
-    u32 path2[3] = {MEDIATYPE_SD ,0x0011C500, 0x00040000 };
+    u32 path2[3] ;
+    if (is_OR)
+    {
+        path2[1] = 0x0011C400;
+        path2[2] = 0x00040000 ;
+    }
+    else
+    {
+        path2[1] = 0x0011C500;
+        path2[2] = 0x00040000 ;
+    }
+    if (!is_cart)
+    {
+        path2[0] = MEDIATYPE_SD;
+    }
+    else
+    {
+        path2[0] = MEDIATYPE_GAME_CARD;
+    }
     FS_Path binPath = {PATH_BINARY, 12, path2};
+
     ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
     if(R_FAILED(ret))
     {
-        binPath.type = MEDIATYPE_GAME_CARD;
-        ret = FSUSER_OpenArchive(&save_archive, ARCHIVE_USER_SAVEDATA,binPath);
-        if(R_FAILED(ret))
-        {
-            fail = -1;
-            goto writeFail;
-        }
+        fail = -1;
+        goto writeFail;
     }
 
     // delete file 

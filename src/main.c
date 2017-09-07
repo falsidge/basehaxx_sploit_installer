@@ -19,6 +19,8 @@ typedef enum
     STATE_INITIALIZE,
     STATE_INITIAL,
     STATE_SELECT_SLOT,
+    STATE_SELECT_GAME,
+    STATE_SELECT_GAME_VERSION,
     STATE_SELECT_FIRMWARE,
     STATE_DOWNLOAD_PAYLOAD,
     STATE_INSTALL_PAYLOAD,
@@ -161,6 +163,10 @@ int main()
     state_t next_state = STATE_INITIALIZE;
 
     char gametitle[2] = {0};
+    bool is_OR = true;
+    bool is_100 = true;
+    bool is_cart = true;
+
     char gameversion[3] = {0};
     u16 gameversion_id = 0;
 
@@ -194,10 +200,19 @@ int main()
                     break;
                 case STATE_INITIAL:
                     strcat(top_text, "Welcome to the (quite dirty) basehaxx installer!\nPlease proceed with caution, as you might lose data if you don't.You may press START at any time to return to menu.\nThanks to smealum and SALT team for the installer code base!\n                           Press A to continue.\n\n");
-                    snprintf(top_text_tmp, sizeof(top_text_tmp) - 1, "Pokemon %s version %s detected\nPress A to continue.\n\n", gametitle, gameversion);
+                    
+                    break;
+               case STATE_SELECT_SLOT:
+                    strcat(top_text, "Please select Digital or Cart\nD-Pad to select, A to continue.\n");      
+                    break;
+                case STATE_SELECT_GAME:
+                   strcat(top_text, "\nPlease select OR or AS.\nD-Pad to select, A to continue.\n");      
+                   break;
+                case STATE_SELECT_GAME_VERSION:
+                    strcat(top_text, "\nPlease select 1.0 or 1.4. \nD-Pad to select, A to continue.\n");      
                     break;
                 case STATE_SELECT_FIRMWARE:
-                    strcat(top_text, "Please select your console's firmware version.\nOnly select NEW 3DS if you own a New 3DS (XL).\nD-Pad to select, A to continue.\n");
+                    strcat(top_text, "\nPlease select your console's firmware version.\nOnly select NEW 3DS if you own a New 3DS (XL).\nD-Pad to select, A to continue.\n");
                     break;
                 case STATE_DOWNLOAD_PAYLOAD:
                     snprintf(top_text, sizeof(top_text) - 1,"%s\n\n\nDownloading payload...\n", top_text);
@@ -251,7 +266,7 @@ int main()
                     break;
                 }
 
-                memcpy(gametitle, (program_id == 0x000400000011C400 ? "OR" : "AS"), 2);
+               // memcpy(gametitle, (program_id == 0x000400000011C400 ? "OR" : "AS"), 2);
 
                 if(getGameVersion(program_id, gameversion, &gameversion_id))
                 {
@@ -266,10 +281,54 @@ int main()
             case STATE_INITIAL:
             {
                 if(hidKeysDown() & KEY_A)
-                    next_state = STATE_SELECT_FIRMWARE;
+                    next_state = STATE_SELECT_SLOT;
             }
             break;
-
+            case STATE_SELECT_SLOT:
+            {
+                if((hidKeysDown() & KEY_LEFT )|| (hidKeysDown() & KEY_RIGHT ) || (hidKeysDown() & KEY_DOWN )|| (hidKeysDown() & KEY_UP) ) is_cart = !is_cart;
+                if(hidKeysDown() & KEY_A){ next_state = STATE_SELECT_GAME;  printf("\n");}
+                printf(is_cart?"Cart\r" :"Digital\r" );
+            }
+            break;
+            case STATE_SELECT_GAME:
+            {
+                if((hidKeysDown() & KEY_LEFT )|| (hidKeysDown() & KEY_RIGHT ) || (hidKeysDown() & KEY_DOWN )|| (hidKeysDown() & KEY_UP) ) is_OR = !is_OR;
+                if(hidKeysDown() & KEY_A){ next_state = STATE_SELECT_GAME_VERSION;
+                    memcpy(gametitle, (is_OR ? "OR" : "AS"), 2);
+                    if (is_OR)
+                    {
+                        program_id = 0x000400000011C400;
+                    }
+                    else
+                    {
+                        program_id = 0x000400000011C500;
+                    }
+                    printf("\n");
+                }
+                printf(is_OR?"OR\r" :"AS\r" );
+            }
+            break;
+            case STATE_SELECT_GAME_VERSION:
+            {
+                if((hidKeysDown() & KEY_LEFT )|| (hidKeysDown() & KEY_RIGHT ) || (hidKeysDown() & KEY_DOWN )|| (hidKeysDown() & KEY_UP) ) is_100 = !is_100;
+                if(hidKeysDown() & KEY_A){ next_state = STATE_SELECT_FIRMWARE;
+                    if (is_100) 
+                    {
+                        memcpy(gameversion, "1.0", 3);
+                    }
+                    else
+                    {
+                        memcpy(gameversion, "1.4", 3);
+                        gameversion_id = VERSION_14;
+                    }
+                    printf("\n");
+                    
+                }
+                printf(is_100?"1.0\r" :"1.4\r" );
+ 
+            }
+            break;
             case STATE_SELECT_FIRMWARE:
             {
                 if(hidKeysDown() & KEY_LEFT) firmware_selected_value--;
@@ -287,7 +346,7 @@ int main()
 
                 if(firmware_version[firmware_selected_value] < 0) firmware_version[firmware_selected_value] = 0;
                 if(firmware_version[firmware_selected_value] >= firmware_maxnum) firmware_version[firmware_selected_value] = firmware_maxnum - 1;
-
+                
                 if(hidKeysDown() & KEY_A) next_state = STATE_DOWNLOAD_PAYLOAD;
 
                 int offset = 26;
@@ -326,7 +385,7 @@ int main()
 
                 void* buffer = NULL;
                 size_t size = 0;
-                Result ret = read_savedata("/main", &buffer, &size);
+                Result ret = read_savedata("/main", &buffer, &size, is_OR,is_cart);
                 if(ret)
                 {
                     sprintf(status, "An error occured! Failed to embed payload\n    Error code: %08lX", ret);
@@ -368,7 +427,7 @@ int main()
                 ccitt = ccitt16(buffer + 0x67c00, 0xe058);
                 *(u16*)(buffer + 0x75fe2) = ccitt;
 
-                ret = write_savedata("/main", buffer, size);
+                ret = write_savedata("/main", buffer, size, is_OR,is_cart);
 
                 free(buffer);
 
